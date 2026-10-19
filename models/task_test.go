@@ -1,6 +1,10 @@
 package models
 
-import "strings"
+import (
+	"strings"
+
+	"github.com/gofrs/uuid"
+)
 
 func (ms *ModelSuite) Test_Task_Create_Valid() {
 	task := &Task{Title: "Comprar café"}
@@ -68,4 +72,62 @@ func (ms *ModelSuite) Test_Task_Toggle_Persists() {
 	reloaded := &Task{}
 	ms.NoError(ms.DB.Find(reloaded, task.ID))
 	ms.True(reloaded.Completed)
+}
+
+func (ms *ModelSuite) createTasks(titles ...string) Tasks {
+	tasks := Tasks{}
+	for _, title := range titles {
+		task := Task{Title: title}
+		verrs, err := ms.DB.ValidateAndCreate(&task)
+		ms.NoError(err)
+		ms.False(verrs.HasAny())
+		tasks = append(tasks, task)
+	}
+	return tasks
+}
+
+func (ms *ModelSuite) positions(tasks Tasks) map[uuid.UUID]int {
+	result := map[uuid.UUID]int{}
+	for _, t := range tasks {
+		task := &Task{}
+		ms.NoError(ms.DB.Find(task, t.ID))
+		result[t.ID] = task.Position
+	}
+	return result
+}
+
+func (ms *ModelSuite) Test_Tasks_Reorder_PersistsNewOrder() {
+	tasks := ms.createTasks("A", "B", "C")
+	ids := []uuid.UUID{tasks[2].ID, tasks[0].ID, tasks[1].ID}
+
+	ms.NoError(ReorderTasks(ms.DB, ids))
+
+	for i, id := range ids {
+		task := &Task{}
+		ms.NoError(ms.DB.Find(task, id))
+		ms.Equal(i+1, task.Position)
+	}
+}
+
+func (ms *ModelSuite) Test_Tasks_Reorder_RejectsMismatchedSet() {
+	tasks := ms.createTasks("A", "B", "C")
+	before := ms.positions(tasks)
+
+	err := ReorderTasks(ms.DB, []uuid.UUID{tasks[0].ID, tasks[1].ID})
+	ms.ErrorIs(err, ErrReorderMismatch)
+
+	err = ReorderTasks(ms.DB, []uuid.UUID{tasks[0].ID, tasks[1].ID, tasks[2].ID, uuid.Must(uuid.NewV4())})
+	ms.ErrorIs(err, ErrReorderMismatch)
+
+	ms.Equal(before, ms.positions(tasks))
+}
+
+func (ms *ModelSuite) Test_Tasks_Reorder_RejectsDuplicates() {
+	tasks := ms.createTasks("A", "B", "C")
+	before := ms.positions(tasks)
+
+	err := ReorderTasks(ms.DB, []uuid.UUID{tasks[0].ID, tasks[0].ID, tasks[2].ID})
+	ms.ErrorIs(err, ErrReorderMismatch)
+
+	ms.Equal(before, ms.positions(tasks))
 }
