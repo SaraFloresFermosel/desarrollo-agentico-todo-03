@@ -2,6 +2,7 @@ package actions
 
 import (
 	"net/url"
+	"regexp"
 	"strings"
 
 	"todo/models"
@@ -73,6 +74,39 @@ func (as *ActionSuite) Test_TasksToggle_CompletesAndReopens() {
 
 	res = as.HTML("/tasks/%s/toggle", task.ID).Put(url.Values{})
 	as.Equal(303, res.Code)
+
+	as.NoError(as.DB.Reload(task))
+	as.False(task.Completed)
+}
+
+func (as *ActionSuite) Test_TasksToggle_FormPostPersists() {
+	as.LoadFixture("tres tareas")
+
+	task := &models.Task{}
+	as.NoError(as.DB.Where("completed = ?", false).First(task))
+
+	page := as.HTML("/").Get().Body.String()
+	token := regexp.MustCompile(`name="authenticity_token" value="([^"]+)"`).FindStringSubmatch(page)
+	as.Require().Len(token, 2)
+
+	res := as.HTML("/tasks/%s/toggle", task.ID).Post(url.Values{
+		"_method":            {"PUT"},
+		"authenticity_token": {token[1]},
+	})
+	as.Equal(303, res.Code)
+
+	as.NoError(as.DB.Reload(task))
+	as.True(task.Completed)
+}
+
+func (as *ActionSuite) Test_TasksToggle_GetDoesNotToggle() {
+	task := &models.Task{Title: "GET no debe alternar"}
+	verrs, err := as.DB.ValidateAndCreate(task)
+	as.NoError(err)
+	as.False(verrs.HasAny())
+
+	res := as.HTML("/tasks/%s/toggle", task.ID).Get()
+	as.Equal(404, res.Code)
 
 	as.NoError(as.DB.Reload(task))
 	as.False(task.Completed)
