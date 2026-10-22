@@ -1,6 +1,6 @@
 <header class="page-header">
   <h1>Tareas</h1>
-  <p class="list-count">
+  <p class="hint list-count">
     <%= len(tasks) %> <%= if (len(tasks) == 1) { %>tarea en tu lista<% } else { %>tareas en tu lista<% } %>
   </p>
 </header>
@@ -73,7 +73,7 @@
     <button type="submit" class="button button-primary">Añadir</button>
   </div>
   <%= if (errors.HasAny()) { %>
-    <p id="title-error" class="field-error" role="alert">
+    <p id="title-error" class="notice field-error" role="alert">
       <%= for (msg) in errors.Get("title") { %><%= msg %><% } %>
     </p>
   <% } %>
