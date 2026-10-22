@@ -2,6 +2,7 @@ package actions
 
 import (
 	"net/url"
+	"regexp"
 	"strings"
 
 	"todo/models"
@@ -73,6 +74,39 @@ func (as *ActionSuite) Test_TasksToggle_CompletesAndReopens() {
 
 	res = as.HTML("/tasks/%s/toggle", task.ID).Put(url.Values{})
 	as.Equal(303, res.Code)
+
+	as.NoError(as.DB.Reload(task))
+	as.False(task.Completed)
+}
+
+func (as *ActionSuite) Test_TasksToggle_FormPostPersists() {
+	as.LoadFixture("tres tareas")
+
+	task := &models.Task{}
+	as.NoError(as.DB.Where("completed = ?", false).First(task))
+
+	page := as.HTML("/").Get().Body.String()
+	token := regexp.MustCompile(`name="authenticity_token" value="([^"]+)"`).FindStringSubmatch(page)
+	as.Require().Len(token, 2)
+
+	res := as.HTML("/tasks/%s/toggle", task.ID).Post(url.Values{
+		"_method":            {"PUT"},
+		"authenticity_token": {token[1]},
+	})
+	as.Equal(303, res.Code)
+
+	as.NoError(as.DB.Reload(task))
+	as.True(task.Completed)
+}
+
+func (as *ActionSuite) Test_TasksToggle_GetDoesNotToggle() {
+	task := &models.Task{Title: "GET no debe alternar"}
+	verrs, err := as.DB.ValidateAndCreate(task)
+	as.NoError(err)
+	as.False(verrs.HasAny())
+
+	res := as.HTML("/tasks/%s/toggle", task.ID).Get()
+	as.Equal(404, res.Code)
 
 	as.NoError(as.DB.Reload(task))
 	as.False(task.Completed)
@@ -236,4 +270,127 @@ func (as *ActionSuite) Test_TasksUpdate_NotFound() {
 func (as *ActionSuite) Test_TasksUpdate_InvalidID() {
 	res := as.HTML("/tasks/no-es-un-uuid").Put(url.Values{"title": {"Título nuevo"}})
 	as.Equal(404, res.Code)
+}
+
+func (as *ActionSuite) tasksInPositionOrder(titles ...string) models.Tasks {
+	for i, title := range titles {
+		task := &models.Task{Title: title}
+		verrs, err := as.DB.ValidateAndCreate(task)
+		as.NoError(err)
+		as.False(verrs.HasAny())
+		task.Position = i + 1
+		as.NoError(as.DB.Update(task))
+	}
+	tasks := models.Tasks{}
+	as.NoError(as.DB.Order("position asc").All(&tasks))
+	return tasks
+}
+
+func (as *ActionSuite) Test_TasksIndex_OrdersByPosition() {
+	first := &models.Task{Title: "Primera creada"}
+	verrs, err := as.DB.ValidateAndCreate(first)
+	as.NoError(err)
+	as.False(verrs.HasAny())
+	second := &models.Task{Title: "Segunda creada"}
+	verrs, err = as.DB.ValidateAndCreate(second)
+	as.NoError(err)
+	as.False(verrs.HasAny())
+
+	second.Position = 1
+	as.NoError(as.DB.Update(second))
+	first.Position = 2
+	as.NoError(as.DB.Update(first))
+
+	body := as.HTML("/").Get().Body.String()
+	as.Less(strings.Index(body, "Segunda creada"), strings.Index(body, "Primera creada"))
+}
+
+func (as *ActionSuite) Test_TasksIndex_PositionTiesFallBackToCreatedAt() {
+	first := &models.Task{Title: "Creada antes"}
+	verrs, err := as.DB.ValidateAndCreate(first)
+	as.NoError(err)
+	as.False(verrs.HasAny())
+	second := &models.Task{Title: "Creada después"}
+	verrs, err = as.DB.ValidateAndCreate(second)
+	as.NoError(err)
+	as.False(verrs.HasAny())
+
+	first.Position = 1
+	as.NoError(as.DB.Update(first))
+	second.Position = 1
+	as.NoError(as.DB.Update(second))
+
+	body := as.HTML("/").Get().Body.String()
+	as.Less(strings.Index(body, "Creada antes"), strings.Index(body, "Creada después"))
+}
+
+func (as *ActionSuite) Test_TasksCreate_AppendsAtEnd() {
+	existing := &models.Task{Title: "Ya existente"}
+	verrs, err := as.DB.ValidateAndCreate(existing)
+	as.NoError(err)
+	as.False(verrs.HasAny())
+	existing.Position = 7
+	as.NoError(as.DB.Update(existing))
+
+	res := as.HTML("/tasks").Post(&models.Task{Title: "Nueva al final"})
+	as.Equal(303, res.Code)
+
+	created := &models.Task{}
+	as.NoError(as.DB.Where("title = ?", "Nueva al final").First(created))
+	as.Equal(8, created.Position)
+}
+
+func (as *ActionSuite) Test_TasksReorder_Persists() {
+	tasks := as.tasksInPositionOrder("Tarea A", "Tarea B", "Tarea C")
+	ids := []string{tasks[2].ID.String(), tasks[0].ID.String(), tasks[1].ID.String()}
+
+	res := as.HTML("/tasks/reorder").Post(url.Values{"ids": ids})
+	as.Equal(204, res.Code)
+
+	body := as.HTML("/").Get().Body.String()
+	as.Less(strings.Index(body, `data-task-id="`+ids[0]+`"`), strings.Index(body, `data-task-id="`+ids[1]+`"`))
+	as.Less(strings.Index(body, `data-task-id="`+ids[1]+`"`), strings.Index(body, `data-task-id="`+ids[2]+`"`))
+}
+
+func (as *ActionSuite) Test_TasksReorder_MismatchReturns422AndKeepsOrder() {
+	tasks := as.tasksInPositionOrder("Tarea A", "Tarea B", "Tarea C")
+
+	res := as.HTML("/tasks/reorder").Post(url.Values{"ids": {tasks[2].ID.String(), tasks[0].ID.String()}})
+	as.Equal(422, res.Code)
+
+	after := models.Tasks{}
+	as.NoError(as.DB.Order("position asc").All(&after))
+	as.Equal(tasks, after)
+}
+
+func (as *ActionSuite) Test_TasksReorder_InvalidUUID() {
+	tasks := as.tasksInPositionOrder("Tarea A", "Tarea B")
+
+	res := as.HTML("/tasks/reorder").Post(url.Values{"ids": {"no-es-un-uuid", tasks[1].ID.String()}})
+	as.Equal(422, res.Code)
+}
+
+func (as *ActionSuite) Test_TasksReorder_EmptyList() {
+	res := as.HTML("/tasks/reorder").Post(url.Values{})
+	as.Equal(204, res.Code)
+}
+
+func (as *ActionSuite) Test_TasksIndex_RendersHandle() {
+	task := as.taskForEditing(false)
+
+	body := as.HTML("/").Get().Body.String()
+	as.Contains(body, `class="task-handle"`)
+	as.Contains(body, `aria-label="Reordenar tarea: Título original"`)
+	as.Contains(body, `data-task-id="`+task.ID.String()+`"`)
+}
+
+func (as *ActionSuite) Test_TasksIndex_HandleTitleEscaped() {
+	task := &models.Task{Title: `<img src=x onerror="alert(1)">`}
+	verrs, err := as.DB.ValidateAndCreate(task)
+	as.NoError(err)
+	as.False(verrs.HasAny())
+
+	body := as.HTML("/").Get().Body.String()
+	as.NotContains(body, `<img src=x`)
+	as.Contains(body, "Reordenar tarea: &lt;img")
 }

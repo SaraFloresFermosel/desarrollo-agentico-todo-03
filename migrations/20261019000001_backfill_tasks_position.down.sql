@@ -1,0 +1,1 @@
+-- sin efecto: la columna la elimina la migración anterior

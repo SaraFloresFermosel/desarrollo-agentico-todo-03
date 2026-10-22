@@ -1,0 +1,1 @@
+add_column("tasks", "position", "int", {"default": 0})
