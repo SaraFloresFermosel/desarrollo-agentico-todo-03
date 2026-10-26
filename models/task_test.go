@@ -131,3 +131,44 @@ func (ms *ModelSuite) Test_Tasks_Reorder_RejectsDuplicates() {
 
 	ms.Equal(before, ms.positions(tasks))
 }
+
+func (ms *ModelSuite) Test_ParseDueDate() {
+	for _, raw := range []string{"", "   "} {
+		date, err := ParseDueDate(raw)
+		ms.NoError(err)
+		ms.Nil(date)
+	}
+
+	date, err := ParseDueDate("2026-11-02")
+	ms.NoError(err)
+	ms.Require().NotNil(date)
+	ms.Equal("2026-11-02", date.Format(DueDateLayout))
+
+	for _, raw := range []string{"2026-02-30", "02/11/2026", "mañana"} {
+		date, err := ParseDueDate(raw)
+		ms.ErrorIs(err, ErrInvalidDueDate)
+		ms.Nil(date)
+	}
+}
+
+func (ms *ModelSuite) Test_Task_DueDate_Persists() {
+	dueDate, err := ParseDueDate("2026-11-02")
+	ms.NoError(err)
+
+	withDate := &Task{Title: "Con fecha", DueDate: dueDate}
+	verrs, err := ms.DB.ValidateAndCreate(withDate)
+	ms.NoError(err)
+	ms.False(verrs.HasAny())
+	ms.NoError(ms.DB.Reload(withDate))
+	ms.Equal("2026-11-02", withDate.DueDateValue())
+	ms.Equal("02/11/2026", withDate.DueDateLabel())
+
+	withoutDate := &Task{Title: "Sin fecha"}
+	verrs, err = ms.DB.ValidateAndCreate(withoutDate)
+	ms.NoError(err)
+	ms.False(verrs.HasAny())
+	ms.NoError(ms.DB.Reload(withoutDate))
+	ms.Nil(withoutDate.DueDate)
+	ms.Equal("", withoutDate.DueDateValue())
+	ms.Equal("", withoutDate.DueDateLabel())
+}

@@ -143,6 +143,16 @@ h1 {
   line-height: 1.55;
 }
 
+.task-due {
+  grid-column: 3;
+  grid-row: 2;
+  margin-top: -0.5rem;
+  padding-bottom: 0.4rem;
+  font-size: 0.85rem;
+  color: var(--color-muted);
+  white-space: nowrap;
+}
+
 .task-toggle-button,
 .task-handle,
 .icon-action {
@@ -283,7 +293,8 @@ h1 {
   line-height: 1;
 }
 
-input[type="text"] {
+input[type="text"],
+input[type="date"] {
   width: 100%;
   min-width: 0;
   min-height: var(--touch-target);
@@ -297,6 +308,11 @@ input[type="text"] {
 
 .new-task-row input {
   flex: 1;
+}
+
+.new-task-row input[type="date"] {
+  flex: 0 0 auto;
+  width: auto;
 }
 
 input::placeholder {
@@ -505,7 +521,7 @@ input:focus-visible {
     flex-wrap: wrap;
   }
 
-  .new-task-row input {
+  .new-task-row input[type="text"] {
     flex-basis: calc(100% - 44px);
   }
 
