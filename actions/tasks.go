@@ -24,8 +24,24 @@ func TasksIndex(c buffalo.Context) error {
 
 	c.Set("tasks", tasks)
 	c.Set("task", &models.Task{})
+	c.Set("dueDate", "")
 	c.Set("errors", validate.NewErrors())
 	return c.Render(http.StatusOK, r.HTML("tasks/index.plush.html"))
+}
+
+// renderIndexWithErrors vuelve a mostrar la lista con el formulario de creación
+// rellenado con los datos enviados y sus errores.
+func renderIndexWithErrors(c buffalo.Context, tx *pop.Connection, task *models.Task, dueDate string, verrs *validate.Errors) error {
+	tasks := models.Tasks{}
+	if err := tx.Order("position asc, created_at asc, id asc").All(&tasks); err != nil {
+		return err
+	}
+
+	c.Set("tasks", tasks)
+	c.Set("task", task)
+	c.Set("dueDate", dueDate)
+	c.Set("errors", verrs)
+	return c.Render(http.StatusUnprocessableEntity, r.HTML("tasks/index.plush.html"))
 }
 
 // TasksCreate crea una tarea nueva a partir del formulario, al final de la lista.
@@ -37,6 +53,15 @@ func TasksCreate(c buffalo.Context) error {
 		return err
 	}
 	task.Title = strings.TrimSpace(task.Title)
+
+	rawDueDate := c.Param("due_date")
+	dueDate, err := models.ParseDueDate(rawDueDate)
+	if err != nil {
+		verrs := validate.NewErrors()
+		verrs.Add("due_date", "La fecha límite no es válida.")
+		return renderIndexWithErrors(c, tx, task, rawDueDate, verrs)
+	}
+	task.DueDate = dueDate
 
 	var last struct {
 		Max int `db:"max"`
@@ -52,15 +77,7 @@ func TasksCreate(c buffalo.Context) error {
 	}
 
 	if verrs.HasAny() {
-		tasks := models.Tasks{}
-		if err := tx.Order("position asc, created_at asc, id asc").All(&tasks); err != nil {
-			return err
-		}
-
-		c.Set("tasks", tasks)
-		c.Set("task", task)
-		c.Set("errors", verrs)
-		return c.Render(http.StatusUnprocessableEntity, r.HTML("tasks/index.plush.html"))
+		return renderIndexWithErrors(c, tx, task, task.DueDateValue(), verrs)
 	}
 
 	c.Flash().Add("success", "Tarea creada.")
@@ -77,11 +94,12 @@ func TasksEdit(c buffalo.Context) error {
 	}
 
 	c.Set("task", task)
+	c.Set("dueDate", task.DueDateValue())
 	c.Set("errors", validate.NewErrors())
 	return c.Render(http.StatusOK, r.HTML("tasks/edit.plush.html"))
 }
 
-// TasksUpdate actualiza solo el título, conservando los demás datos de la tarea.
+// TasksUpdate actualiza el título y la fecha límite, conservando los demás datos de la tarea.
 func TasksUpdate(c buffalo.Context) error {
 	tx := c.Value("tx").(*pop.Connection)
 
@@ -91,12 +109,24 @@ func TasksUpdate(c buffalo.Context) error {
 	}
 
 	input := struct {
-		Title string `form:"title" json:"title"`
+		Title   string `form:"title" json:"title"`
+		DueDate string `form:"due_date" json:"due_date"`
 	}{}
 	if err := c.Bind(&input); err != nil {
 		return err
 	}
 	task.Title = strings.TrimSpace(input.Title)
+
+	dueDate, err := models.ParseDueDate(input.DueDate)
+	if err != nil {
+		verrs := validate.NewErrors()
+		verrs.Add("due_date", "La fecha límite no es válida.")
+		c.Set("task", task)
+		c.Set("dueDate", input.DueDate)
+		c.Set("errors", verrs)
+		return c.Render(http.StatusUnprocessableEntity, r.HTML("tasks/edit.plush.html"))
+	}
+	task.DueDate = dueDate
 
 	verrs, err := tx.ValidateAndUpdate(task)
 	if err != nil {
@@ -104,6 +134,7 @@ func TasksUpdate(c buffalo.Context) error {
 	}
 	if verrs.HasAny() {
 		c.Set("task", task)
+		c.Set("dueDate", input.DueDate)
 		c.Set("errors", verrs)
 		return c.Render(http.StatusUnprocessableEntity, r.HTML("tasks/edit.plush.html"))
 	}
