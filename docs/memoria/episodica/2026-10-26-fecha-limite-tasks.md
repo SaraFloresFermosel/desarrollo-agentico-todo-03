@@ -1,6 +1,6 @@
 # Episodio: fecha límite opcional en las tareas
 
-2026-10-26 · feature · rama `adw/3-fecha-limite-tasks` · commit `be595cc` (validado el 2026-10-29 contra ese commit) · issue [#3](https://github.com/SaraFloresFermosel/desarrollo-agentico-todo-03/issues/3) · [plan](../../../plans/fecha-limite-tasks.md) · [validación](../../../validaciones/fecha-limite-tasks.md)
+2026-10-26 · feature · rama `adw/3-fecha-limite-tasks` · commit `be595cc` (validado el 2026-10-29 contra ese commit) · issue [#3](https://github.com/SaraFloresFermosel/desarrollo-agentico-todo-03/issues/3) · [plan](../../../plans/fecha-limite-tasks.md) · validación local del 2026-10-29 (no está en git)
 
 ## Contexto
 

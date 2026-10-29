@@ -10,7 +10,7 @@ Verificado: 2026-10-29 contra `43f3393`.
 - En el alta, el campo de fecha (`#task-due-date`, `type="date"`, `name="due_date"`) tiene una etiqueta visualmente oculta, «Fecha límite», y está entre el título y el botón «Añadir» — `templates/tasks/index.plush.html:89-97`
 - En la edición, el campo de fecha tiene la etiqueta visible «Fecha límite (opcional)» — `templates/tasks/edit.plush.html:26-33`
 - `.task-due` se coloca en la segunda fila de la cuadrícula de cada tarea, bajo el título, en gris y sin saltos de línea — `public/assets/app.css:146-154`
-- `input[type="date"]` tiene el mismo estilo que `input[type="text"]`; en la fila del alta no crece (`flex: 0 0 auto`) y en móvil baja a una segunda línea junto a «Añadir» — `public/assets/app.css:296-316`, captura `validaciones/fecha-limite-tasks/lista-movil.png`
+- `input[type="date"]` tiene el mismo estilo que `input[type="text"]`; en la fila del alta no crece (`flex: 0 0 auto`) y en pantallas de hasta 380 px la fila hace `flex-wrap`, así que baja a una segunda línea junto a «Añadir» — `public/assets/app.css:296-316`, `:515-531`
 - En la edición, el título tiene `autofocus` siempre, también cuando el error está en la fecha — `templates/tasks/edit.plush.html:17`
 
 ## Reglas e invariantes

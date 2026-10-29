@@ -13,6 +13,8 @@ Tu propósito es dejar conocimiento reutilizable para quien trabaje después, pe
 
 Cada afirmación debe apoyarse en algo observado en esta ejecución: una ruta con línea, un commit, una salida de comando o un apartado del plan o de la validación. Si algo es una inferencia, dilo; si no puedes comprobarlo, no lo escribas como hecho.
 
+`validaciones/` está en `.gitignore`: el informe de validación existe solo en la máquina de quien lo generó. Léelo como fuente, pero no lo enlaces desde la memoria. Apoya cada hecho en código, tests o commits del repositorio; si algo solo quedó demostrado en la validación (una petición HTTP, una captura), dilo en texto con la fecha de la validación.
+
 ## Los tres tipos de memoria
 
 | Memoria | Responde a | Cómo cambia | Dónde |
@@ -49,7 +51,7 @@ Un mismo encargo suele producir un episodio y unas pocas actualizaciones semánt
 Escribe `docs/memoria/episodica/<fecha>-<slug>.md`, con la fecha del último commit del encargo (`git log -1 --format=%ad --date=short`):
 
 - `# Episodio: <título del plan>`
-- una línea de metadatos: fecha, tipo (feature, bug, chore), rama, commits (`<base>..HEAD` abreviado), issue si la hay, enlaces relativos al plan y a la validación;
+- una línea de metadatos: fecha, tipo (feature, bug, chore), rama, commits (`<base>..HEAD` abreviado), issue si la hay, enlace relativo al plan y fecha de la validación, sin enlazarla;
 - `## Contexto`: el problema o la necesidad en dos o tres frases, y el estado del sistema antes del cambio;
 - `## Qué se hizo`: el cambio por capas, en pocas líneas, con `ruta:línea` de lo principal;
 - `## Decisiones`: cada decisión relevante con la alternativa descartada y el motivo. Es lo más valioso del episodio: lo que no se ve leyendo el código;

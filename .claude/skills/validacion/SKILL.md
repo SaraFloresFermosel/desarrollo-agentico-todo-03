@@ -9,7 +9,7 @@ allowed-tools: Bash, Read, Glob, Grep, Write
 
 Recibe en `$ARGUMENTS` el plan que se implementó (normalmente `plans/<slug>.md`), una URL de issue o la descripción del encargo, y opcionalmente `--base <rama>` (por defecto `main`). Si no se indica nada, usa el plan de `plans/` que aparezca en `git diff <base>...HEAD --name-only`; si hay varios o ninguno, detente y pide cuál validar.
 
-Tu propósito es comprobar y demostrar, no arreglar. No modifiques código, tests, configuración ni el plan. Solo puedes crear el informe de validación y la carpeta de capturas y vídeo que lo acompaña.
+Tu propósito es comprobar y demostrar, no arreglar. No modifiques código, tests, configuración ni el plan. Solo puedes crear el informe de validación y la carpeta de capturas y vídeo que lo acompaña. Los dos van en `validaciones/`, que está en `.gitignore`: son evidencias locales y nunca entran en el repositorio.
 
 Cada afirmación del informe debe apoyarse en algo que hayas observado en esta ejecución: una salida de comando, una ruta con línea o una respuesta HTTP. No presentes una suposición como evidencia; si no puedes comprobar algo, márcalo como «Sin evidencia» y explica por qué.
 
@@ -112,9 +112,11 @@ No grabes vídeo para un cambio que solo altera un texto o un estado estático: 
 
 Copia las capturas y el vídeo a `validaciones/<slug>/` y enlázalos desde el informe con rutas relativas.
 
-No detengas procesos ni contenedores que ya estuvieran en marcha antes de empezar. Antes de cerrar, `git status --short` debe mostrar lo mismo que al empezar más el informe y su carpeta de capturas y vídeo.
+No detengas procesos ni contenedores que ya estuvieran en marcha antes de empezar. Antes de cerrar, `git status --short` debe mostrar lo mismo que al empezar: el informe, las capturas y el vídeo no aparecen porque `validaciones/` está ignorada.
 
 ## 6. Informe de validación
+
+Antes de escribir nada en `validaciones/`, comprueba con `git check-ignore -q validaciones/<slug>.md` que la carpeta sigue ignorada. Si no lo está, no la añadas tú al `.gitignore`: detente y avisa.
 
 Escribe `validaciones/<slug>.md` (mismo slug que el plan) con:
 
@@ -131,8 +133,8 @@ Escribe `validaciones/<slug>.md` (mismo slug que el plan) con:
 
 El veredicto es **Validado** solo si todos los criterios están en ✅ y todas las validaciones pasan. Cualquier ❌ o validación fallida por el código implica **No validado**.
 
-No hagas commit del informe, las capturas ni el vídeo salvo que se pida.
+No hagas commit del informe, las capturas ni el vídeo, ni los fuerces con `git add -f`, aunque se pida un commit del cambio validado. Si hay que compartirlos, resume el veredicto y la tabla de criterios en la descripción del PR y adjunta allí las capturas o el vídeo.
 
 ## Informe final
 
-Muestra en el chat el veredicto, la tabla de criterios, la ruta del informe, las capturas más representativas y el vídeo si lo hay. Si hay ❌ o ⚠️, indica para cada uno qué falta y en qué archivo, sin corregirlo.
+Muestra en el chat el veredicto, la tabla de criterios, la ruta del informe (indicando que es local y no está en git), las capturas más representativas y el vídeo si lo hay. Si hay ❌ o ⚠️, indica para cada uno qué falta y en qué archivo, sin corregirlo.
